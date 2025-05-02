@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, addDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import './FormPage.css';  // <-- Import the CSS
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import './FormPage.css';
 
 function FormPage() {
   const [title, setTitle] = useState('');
@@ -11,9 +13,32 @@ function FormPage() {
   const [imageURL, setImageURL] = useState('None');
   const [isAvailable, setIsAvailable] = useState(false);
   const [quantity, setQuantity] = useState(0);
-  const [shopID, setShopID] = useState('None');
-  
+  const [shopID, setShopID] = useState(''); // Automatically set shopID
+
   const navigate = useNavigate();
+
+  // Get the current logged-in user and fetch their shopID
+  useEffect(() => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (currentUser) {
+      // Optionally, you can fetch the shopID from Firestore if needed
+      // For example, fetching shop info using the current user's UID
+      const fetchShopID = async () => {
+        const userDocRef = doc(db, "cafes", currentUser.uid); // Assuming "cafes" collection has the shop info
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          setShopID(userDocSnap.id); // Or retrieve the shopID from the document fields if it's stored in the doc
+        }
+      };
+
+      fetchShopID();
+    } else {
+      console.log("No user logged in");
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +52,7 @@ function FormPage() {
         imageURL,
         isAvailable,
         quantity,
-        shopID
+        shopID,  // Automatically filled shopID
       });
 
       console.log("Document written with ID: ", docRef.id);
@@ -92,18 +117,13 @@ function FormPage() {
           placeholder="Enter item quantity"
         />
 
-        <label>Shop ID</label>
-        <input
-          type="text"
-          value={shopID}
-          onChange={(e) => setShopID(e.target.value)}
-          placeholder="Enter shop ID"
-        />
+        {/* Remove shopID input from form */}
+        {/* shopID is set programmatically and will be hidden from the user */}
 
         <button type="submit">Save Item</button>
       </form>
 
-            {/* Back Button */}
+      {/* Back Button */}
       <button onClick={handleBack} className="back-button">
         Back to Home
       </button>

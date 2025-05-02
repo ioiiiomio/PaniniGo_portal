@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getAuth } from 'firebase/auth'; // To get the current user
 
 function ItemViewPage() {
   const { id } = useParams();
@@ -11,6 +12,7 @@ function ItemViewPage() {
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [shopID, setShopID] = useState('');
   
   const navigate = useNavigate();
 
@@ -27,6 +29,7 @@ function ItemViewPage() {
         setPrice(data.price);
         setQuantity(data.quantity);
         setPhotoUrl(data.photoUrl);
+        setShopID(data.shopID);
       } else {
         console.log("No such document!");
       }
@@ -34,6 +37,30 @@ function ItemViewPage() {
 
     fetchItem();
   }, [id]);
+
+  useEffect(() => {
+    const checkUserShopID = async () => {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        const userDocRef = doc(db, "cafes", currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const currentUserShopID = userDocSnap.id;
+          if (currentUserShopID !== shopID) {
+            alert("You are not authorized to edit this item.");
+            navigate('/'); // Redirect to home if the shop IDs don't match
+          }
+        }
+      }
+    };
+
+    if (shopID) {
+      checkUserShopID();
+    }
+  }, [shopID, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +71,7 @@ function ItemViewPage() {
       description,
       price: parseInt(price),
       quantity: parseInt(quantity),
-      photoUrl,
+      photoUrl
     });
 
     navigate('/');
@@ -52,6 +79,16 @@ function ItemViewPage() {
 
   return (
     <div className="ItemViewPage">
+      <h2>Item Details</h2>
+      <div>
+        <h3>{item.title}</h3>
+        <img src={item.photoUrl} alt={item.title} style={{ maxWidth: '200px' }} />
+        <p><strong>Description:</strong> {item.description}</p>
+        <p><strong>Price:</strong> ${item.price}</p>
+        <p><strong>Quantity:</strong> {item.quantity}</p>
+        <p><strong>Shop ID:</strong> {item.shopID}</p>
+      </div>
+
       <h2>Edit Item</h2>
       <form onSubmit={handleSubmit}>
         <label>Title</label>
@@ -62,8 +99,7 @@ function ItemViewPage() {
         />
 
         <label>Description</label>
-        <input
-          type="text"
+        <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
